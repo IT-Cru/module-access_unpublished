@@ -71,7 +71,7 @@ function access_unpublished_node_view($node) {
         array('!link' => $au_link));
       if (variable_get('access_unpublished_display_link_in_drupal_message', 1)) {
         // Show link in Drupal message.
-        drupal_set_message($au_link_text, 'status');
+        drupal_set_message($au_link_text, 'status', FALSE);
       }
       if (variable_get('access_unpublished_display_link_in_node_content', 1)) {
         // Show link in extra renderable entry in node contents.
