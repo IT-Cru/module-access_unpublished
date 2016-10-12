@@ -1,142 +1,181 @@
 <?php
 /**
  * @file
- * Drupal module: Access unpublished.
- *
- * Access unpublished module allows view unpublished content to anyone who has
- * a unique URL and appropriate permissions.
- *
- * URL hash parameter can be configured.
+ * Contains
  */
+
 
 /**
- * Implements hook_menu().
+ * Implements hook_entity_access().
  */
-function access_unpublished_menu() {
-  // This provides hash URL parameter setting.
-  $items['admin/config/content/access_unpublished'] = array(
-    'title' => 'Access unpublished',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('access_unpublished_url_param_form'),
-    'access arguments' => array('access unpublished configuration'),
-    'file' => 'access_unpublished.admin.inc',
-    'type' => MENU_NORMAL_ITEM,
-  );
-  return $items;
-}
+function access_unpublished_entity_access(\Drupal\Core\Entity\EntityInterface $entity, $operation, \Drupal\Core\Session\AccountInterface $account) {
 
-/**
- * Implements hook_permission().
- */
-function access_unpublished_permission() {
+  $tokenKey = \Drupal::config('access_unpublished.settings')->get('hash_key');
 
-  $permissions['access unpublished view unpublished node'] = array(
-    'title' => t('View unpublished contents'),
-    'description' => t('Allow users to view unpublished contents with unique key in URL path'),
-  );
-  $permissions['access unpublished view hashkey'] = array(
-    'title' => t('View hash key link to unpublished contents'),
-    'description' => t('Allow users to view link with hash key for view unpublished contents'),
-  );
-  $permissions['access unpublished configuration'] = array(
-    'title' => t('Access unpublished module configuration'),
-    'description' => t('Allow users to configure module'),
-  );
-  return $permissions;
-}
+  if (
+    $operation == 'view' &&
+    \Drupal::request()->query->has($tokenKey) &&
+    $entity->getEntityTypeId() == 'node' &&
+    $account->hasPermission('access_unpublished node ' . $entity->bundle()) &&
+    !$entity->status->value
+  ) {
 
-/**
- * Implements hook_node_view().
- */
-function access_unpublished_node_view($node) {
-  // Test publish and view node status.
-  // Only unpublished nodes in full page view are affected.
-  if ($node->status == NODE_NOT_PUBLISHED && node_is_page($node)) {
-    // Test user permission.
-    if (user_access('access unpublished view hashkey')) {
-      // Construct URL link.
-      $au_url_key = variable_get('access_unpublished_url_key', 'hash');
-      $au_link = l(t("hashed link"), 'node/' . $node->nid,
-        array(
-          'query' => array(
-            $au_url_key => access_unpublished_get_hash_from_nodeid($node->nid),
-          ),
-          'attributes' => array(
-            // We need a extra class for link with class="active" from l()
-            'class' => array('access_unpublished_link'),
-          ),
-        )
-      );
-      $au_link_text = t("You can use !link to view this unpublished node.",
-        array('!link' => $au_link));
-      if (variable_get('access_unpublished_display_link_in_drupal_message', 1)) {
-        // Show link in Drupal message.
-        drupal_set_message($au_link_text, 'status', FALSE);
+    $query = \Drupal::entityQuery('access_token');
+    $tokens = $query->condition('entity_type', $entity->getEntityType()->id())
+      ->condition('entity_id', $entity->id())
+#      ->condition('expire', REQUEST_TIME, '>')
+      ->condition('value', \Drupal::request()->get($tokenKey))
+      ->execute();
+
+    if ($tokens) {
+
+      $token = \Drupal::entityTypeManager()
+        ->getStorage('access_token')
+        ->load(current($tokens));
+
+      if (!$token->isExpired()) {
+        return \Drupal\Core\Access\AccessResult::allowed()
+          ->cachePerPermissions()
+          ->setCacheMaxAge($token->get('expire')->value - REQUEST_TIME);
+
       }
-      if (variable_get('access_unpublished_display_link_in_node_content', 1)) {
-        // Show link in extra renderable entry in node contents.
-        $node->content['access_unpublished_link'] = array(
-          '#access_unpublished_link' => $au_link_text,
-          '#weight' => 100,
-          '#theme' => 'access_unpublished_link',
-        );
-      }
+
     }
   }
+  return \Drupal\Core\Access\AccessResult::neutral();
 }
 
 /**
- * Implements hook_node_access().
- *
- * Return NODE_ACCESS_ALLOW if url hash matches reference hash.
- * In other cases return NODE_ACCESS_IGNORE to allow other modules
- * or the node_access table to control access.
+ * Implements hook_form_alter().
  */
-function access_unpublished_node_access($node, $op) {
-  if ($op == 'view' && isset($node->nid)
-    && $node->status == NODE_NOT_PUBLISHED) {
-    // Check user permission.
-    if (user_access('access unpublished view unpublished node')) {
-      $au_url_key = variable_get('access_unpublished_url_key', 'hash');
-      // Check hash key in url.
-      $url_query = drupal_get_query_parameters();
-      if (isset($url_query[$au_url_key])) {
-        $url_hash = $url_query[$au_url_key];
-        // Generate reference hash.
-        $hash = access_unpublished_get_hash_from_nodeid($node->nid);
-        // Check hash match and return access state.
-        if ($url_hash == $hash) {
-          return NODE_ACCESS_ALLOW;
+function access_unpublished_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state) {
+
+  if (strpos($form['#form_id'], 'node_article_edit_form') !== FALSE) {
+
+    /** @var \Drupal\Core\Entity\Entity $entity */
+    $entity = $form_state->getFormObject()->getEntity();
+
+    if ($entity->status->value) {
+      return;
+    }
+
+    $storage = \Drupal::entityTypeManager()->getStorage('access_token');
+
+    $query = $storage->getQuery();
+    $tokens = $query->condition('entity_type', $entity->getEntityType()->id())
+      ->condition('entity_id', $entity->id())
+      ->execute();
+
+
+    // Create the group for the fields.
+    $form['access_unpublished_settings'] = array(
+      '#type' => 'details',
+      '#title' => t('Temporary unpublished access'),
+      '#open' => !empty($tokens),
+      '#weight' => 35,
+      '#attributes' => array(
+        'class' => array('access-unpublished-form'),
+      ),
+      '#optional' => FALSE,
+    );
+
+    $form['access_unpublished_settings']['#group'] = 'advanced';
+
+    if ($tokens) {
+
+      /** @var \Drupal\access_unpublished\Entity\AccessToken[] $tokens */
+      $tokens = $storage->loadMultiple($tokens);
+
+      $form['access_unpublished_settings']['token_table'] = array(
+        '#type' => 'table',
+        '#header' => array(
+          t('Valid'),
+          t('Link'),
+          t('Expire date'),
+          t('Operations'),
+        ),
+      );
+
+      $tokenKey = \Drupal::config('access_unpublished.settings')->get('hash_key');
+
+      foreach ($tokens as $id => $token) {
+
+        $form['access_unpublished_settings']['token_table'][$id]['expired'] = array(
+          '#type' => 'checkbox',
+          '#default_value' => !$token->isExpired(),
+          '#disabled' => TRUE
+        );
+        $form['access_unpublished_settings']['token_table'][$id]['link'] = array(
+          '#type' => 'link',
+          '#title' => t('Copy to clipboard'),
+          '#url' => \Drupal\Core\Url::fromRoute('entity.' . $entity->getEntityType()
+              ->id() . '.canonical', array(
+            $entity->getEntityType()
+              ->id() => $entity->id(),
+            $tokenKey => $token->get('value')->value
+          )),
+        );
+        $form['access_unpublished_settings']['token_table'][$id]['expire_date'] = array(
+          '#plain_text' => $token->get('expire')->value > 0 ? format_date($token->get('expire')->value) : t('Infinite'),
+        );
+        $form['access_unpublished_settings']['token_table'][$id]['operations'] = array(
+          '#type' => 'operations',
+          '#links' => array(),
+        );
+
+        if ($token->isExpired()) {
+          $form['access_unpublished_settings']['token_table'][$id]['operations']['#links']['renew'] = array(
+            'title' => t('Renew'),
+            'url' => \Drupal\Core\Url::fromRoute('access_unpublished.access_token_controller_renew', array('id' => $id)),
+          );
+        }
+        else {
+          $form['access_unpublished_settings']['token_table'][$id]['operations']['#links']['delete'] = array(
+            'title' => t('Delete'),
+            'url' => \Drupal\Core\Url::fromRoute('access_unpublished.access_token_controller_delete', array('id' => $id)),
+          );
         }
       }
     }
+
+    $duration = \Drupal::config('access_unpublished.settings')->get('duration');
+
+    $form['access_unpublished_settings']['duration'] = [
+      '#type' => 'select',
+      '#title' => t('Duration'),
+      '#options' => [
+        86400 => t('@days Days', ['@days' => 1]),
+        172800 => t('@days Days', ['@days' => 2]),
+        345600 => t('@days Days', ['@days' => 4]),
+        604800 => t('@days Days', ['@days' => 7]),
+        1209600 => t('@days Days', ['@days' => 14]),
+        -1 => t('Infinite'),
+      ],
+      '#default_value' => $duration,
+    ];
+
+    $form['access_unpublished_settings']['generate_token'] = array(
+      '#type' => 'submit',
+      '#value' => t('Generate token'),
+      '#submit' => ['access_unpublished_generate_token'],
+    );
   }
-  return NODE_ACCESS_IGNORE;
 }
 
+function access_unpublished_generate_token(&$form, \Drupal\Core\Form\FormStateInterface $form_state) {
 
-/**
- * Generate hash from node ID.
- *
- * @param int $nid
- *   Node ID, nid.
- *
- * @return string
- *   Base-64 encoded, URL-safe sha-256 hash based on node ID.
- */
-function access_unpublished_get_hash_from_nodeid($nid) {
-  return drupal_hash_base64(drupal_get_private_key() . $nid);
-}
+  /** @var \Drupal\Core\Entity\Entity $entity */
+  $entity = $form_state->getFormObject()->getEntity();
+  \Drupal::entityTypeManager()->getStorage('access_token')->create(
+    [
+      'entity_type' => $entity->getEntityType()->id(),
+      'entity_id' => $entity->id(),
+      'expire' => $form_state->getValue('duration') > 0 ? REQUEST_TIME + $form_state->getValue('duration') : -1,
+    ]
+  )->save();
 
+  $previousUrl = \Drupal::requestStack()
+    ->getCurrentRequest()->server->get('HTTP_REFERER');
 
-/**
- * Implements hook_theme().
- */
-function access_unpublished_theme() {
-  return array(
-    'access_unpublished_link' => array(
-      'variables' => array('access_unpublished_link' => NULL),
-      'template' => 'access-unpublished-link',
-    ),
-  );
+  $form_state->setRedirectUrl(\Drupal\Core\Url::fromUri($previousUrl));
 }
