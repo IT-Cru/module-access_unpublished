@@ -23,7 +23,6 @@ function access_unpublished_entity_access(\Drupal\Core\Entity\EntityInterface $e
     $query = \Drupal::entityQuery('access_token');
     $tokens = $query->condition('entity_type', $entity->getEntityType()->id())
       ->condition('entity_id', $entity->id())
-#      ->condition('expire', REQUEST_TIME, '>')
       ->condition('value', \Drupal::request()->get($tokenKey))
       ->execute();
 
@@ -174,8 +173,5 @@ function access_unpublished_generate_token(&$form, \Drupal\Core\Form\FormStateIn
     ]
   )->save();
 
-  $previousUrl = \Drupal::requestStack()
-    ->getCurrentRequest()->server->get('HTTP_REFERER');
-
-  $form_state->setRedirectUrl(\Drupal\Core\Url::fromUri($previousUrl));
+  $form_state->setRebuild();
 }
