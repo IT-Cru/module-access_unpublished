@@ -127,7 +127,7 @@ function access_unpublished_form_alter(&$form, \Drupal\Core\Form\FormStateInterf
           ],
         );
         $form['access_unpublished_settings']['token_table'][$id]['expire_date'] = array(
-          '#plain_text' => $token->get('expire')->value > 0 ? format_date($token->get('expire')->value) : t('Infinite'),
+          '#plain_text' => $token->get('expire')->value > 0 ? format_date($token->get('expire')->value) : t('Unlimited'),
         );
         $form['access_unpublished_settings']['token_table'][$id]['operations'] = array(
           '#type' => 'operations',
