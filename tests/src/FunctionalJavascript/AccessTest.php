@@ -5,7 +5,6 @@ namespace Drupal\Tests\access_unpublished\FunctionalJavascript;
 use Drupal\access_unpublished\Entity\AccessToken;
 use Drupal\FunctionalJavascriptTests\JavascriptTestBase;
 use Drupal\node\Entity\Node;
-use Drupal\user\Entity\Role;
 use Drupal\user\RoleInterface;
 
 /**
@@ -19,6 +18,9 @@ class AccessTest extends JavascriptTestBase {
 
   public static $modules = ['access_unpublished'];
 
+  /**
+   * Checks node access before and after token creation.
+   */
   public function testAccessAllowed() {
 
     user_role_grant_permissions(RoleInterface::ANONYMOUS_ID, array(
@@ -29,7 +31,7 @@ class AccessTest extends JavascriptTestBase {
     $node = Node::create([
       'title' => 'Foo',
       'type' => 'article',
-      'status' => 0
+      'status' => 0,
     ]);
     $node->save();
 
@@ -43,7 +45,6 @@ class AccessTest extends JavascriptTestBase {
       'value' => '12345',
       'expire' => REQUEST_TIME + 100,
     ])->save();
-
 
     $this->drupalGet($node->url('canonical'), ['query' => ['auHash' => 12345]]);
     $this->assertSession()->statusCodeEquals(200);

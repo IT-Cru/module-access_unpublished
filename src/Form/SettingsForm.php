@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains Drupal\access_unpublished\Form\SettingsForm.
- */
-
 namespace Drupal\access_unpublished\Form;
 
 use Drupal\Core\Form\ConfigFormBase;
@@ -61,7 +56,6 @@ class SettingsForm extends ConfigFormBase {
       ],
       '#default_value' => $config->get('duration'),
     ];
-
 
     return parent::buildForm($form, $form_state);
   }

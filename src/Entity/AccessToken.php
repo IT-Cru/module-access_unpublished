@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\access_unpublished\Entity\AccessToken.
- */
-
 namespace Drupal\access_unpublished\Entity;
 
 use Drupal\Component\Serialization\Json;
@@ -237,8 +232,11 @@ class AccessToken extends ContentEntityBase implements AccessTokenInterface {
     return $values;
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public function isExpired() {
-
     return ($this->get('expire')->value > 0 && $this->get('expire')->value < REQUEST_TIME);
   }
+
 }

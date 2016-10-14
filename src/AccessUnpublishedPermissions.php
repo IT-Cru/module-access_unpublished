@@ -5,9 +5,13 @@ namespace Drupal\access_unpublished;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
-use \Drupal\node\Entity\NodeType;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
+/**
+ * Calculates the permissions for access_unpublished.
+ *
+ * @package Drupal\access_unpublished
+ */
 class AccessUnpublishedPermissions implements ContainerInjectionInterface {
 
   use StringTranslationTrait;
@@ -26,7 +30,7 @@ class AccessUnpublishedPermissions implements ContainerInjectionInterface {
    *   The entity manager.
    */
   public function __construct(EntityTypeManagerInterface $entity_type_manager) {
-    $this->entityTypeManager= $entity_type_manager;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -36,12 +40,19 @@ class AccessUnpublishedPermissions implements ContainerInjectionInterface {
     return new static($container->get('entity_type.manager'));
   }
 
+  /**
+   * Permissions callback.
+   *
+   * @return array
+   *   Returns permissions for all nodes.
+   */
   public function permissions() {
 
     $permissions = [];
 
-    /** @var NodeType[] $bundles */
-    $bundles = $this->entityTypeManager->getStorage('node_type')->loadMultiple();
+    /** @var \Drupal\node\Entity\NodeType[] $bundles */
+    $bundles = $this->entityTypeManager->getStorage('node_type')
+      ->loadMultiple();
 
     foreach ($bundles as $bundle) {
 

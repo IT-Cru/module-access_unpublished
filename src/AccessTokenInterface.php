@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\access_unpublished\AccessTokenInterface.
- */
-
 namespace Drupal\access_unpublished;
 
 use Drupal\Core\Entity\ContentEntityInterface;
@@ -17,7 +12,6 @@ use Drupal\user\EntityOwnerInterface;
  * @ingroup access_unpublished
  */
 interface AccessTokenInterface extends ContentEntityInterface, EntityChangedInterface, EntityOwnerInterface {
-  // Add get/set methods for your configuration properties here.
 
   /**
    * Gets the Access token creation timestamp.
@@ -38,6 +32,12 @@ interface AccessTokenInterface extends ContentEntityInterface, EntityChangedInte
    */
   public function setCreatedTime($timestamp);
 
+  /**
+   * Indicates if a token is expired.
+   *
+   * @return bool
+   *   Expired or not.
+   */
   public function isExpired();
 
 }
