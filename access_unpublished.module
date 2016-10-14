@@ -96,7 +96,8 @@ function access_unpublished_form_alter(&$form, \Drupal\Core\Form\FormStateInterf
         ),
       );
 
-      $tokenKey = \Drupal::config('access_unpublished.settings')->get('hash_key');
+      $tokenKey = \Drupal::config('access_unpublished.settings')
+        ->get('hash_key');
 
       foreach ($tokens as $id => $token) {
 
@@ -105,15 +106,25 @@ function access_unpublished_form_alter(&$form, \Drupal\Core\Form\FormStateInterf
           '#default_value' => !$token->isExpired(),
           '#disabled' => TRUE
         );
-        $form['access_unpublished_settings']['token_table'][$id]['link'] = array(
-          '#type' => 'link',
-          '#title' => t('Copy to clipboard'),
-          '#url' => \Drupal\Core\Url::fromRoute('entity.' . $entity->getEntityType()
-              ->id() . '.canonical', array(
-            $entity->getEntityType()
-              ->id() => $entity->id(),
+
+
+        $url = \Drupal\Core\Url::fromRoute(
+          'entity.' . $entity->getEntityType()->id() . '.canonical',
+          [
+            $entity->getEntityType()->id() => $entity->id(),
             $tokenKey => $token->get('value')->value
-          )),
+          ],
+          [
+            'absolute' => TRUE,
+          ])->toString();
+
+        $form['access_unpublished_settings']['token_table'][$id]['link'] = array(
+          '#type' => 'button',
+          '#value' => t('Copy to clipboard'),
+          '#attributes' => [
+            'data-clipboard-text' => $url,
+            'class' => ['clipboard-button']
+          ],
         );
         $form['access_unpublished_settings']['token_table'][$id]['expire_date'] = array(
           '#plain_text' => $token->get('expire')->value > 0 ? format_date($token->get('expire')->value) : t('Infinite'),
