@@ -65,6 +65,7 @@ function access_unpublished_form_alter(&$form, \Drupal\Core\Form\FormStateInterf
       ->condition('entity_id', $entity->id())
       ->execute();
 
+    $form['#attached']['library'][] = 'access_unpublished/drupal.access_unpublished.admin';
 
     // Create the group for the fields.
     $form['access_unpublished_settings'] = array(
@@ -141,14 +142,14 @@ function access_unpublished_form_alter(&$form, \Drupal\Core\Form\FormStateInterf
 
     $form['access_unpublished_settings']['duration'] = [
       '#type' => 'select',
-      '#title' => t('Duration'),
+      '#title' => t('Lifetime'),
       '#options' => [
         86400 => t('@days Days', ['@days' => 1]),
         172800 => t('@days Days', ['@days' => 2]),
         345600 => t('@days Days', ['@days' => 4]),
         604800 => t('@days Days', ['@days' => 7]),
         1209600 => t('@days Days', ['@days' => 14]),
-        -1 => t('Infinite'),
+        -1 => t('Unlimited'),
       ],
       '#default_value' => $duration,
     ];

@@ -1,0 +1,5 @@
+drupal.access_unpublished.admin:
+  version: VERSION
+  css:
+    theme:
+      css/access_unpublished.admin.css: {}

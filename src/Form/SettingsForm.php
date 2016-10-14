@@ -45,14 +45,15 @@ class SettingsForm extends ConfigFormBase {
 
     $form['duration'] = [
       '#type' => 'select',
-      '#title' => $this->t('Duration'),
+      '#title' => $this->t('Lifetime'),
+      '#description' => $this->t('Default lifetime of the generated access tokens.'),
       '#options' => [
         86400 => $this->t('@days Days', ['@days' => 1]),
         172800 => $this->t('@days Days', ['@days' => 2]),
         345600 => $this->t('@days Days', ['@days' => 4]),
         604800 => $this->t('@days Days', ['@days' => 7]),
         1209600 => $this->t('@days Days', ['@days' => 14]),
-        -1 => $this->t('Infinite'),
+        -1 => $this->t('Unlimited'),
       ],
       '#default_value' => $config->get('duration'),
     ];
